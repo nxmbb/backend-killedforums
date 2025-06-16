@@ -68,19 +68,19 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Get all threads (optionally filtered by category)
+// Get all threads
 app.get('/threads', async (req, res) => {
-  const categoryFilter = req.query.category;
   try {
+    const { category } = req.query;
     let sql = `
-      SELECT t.id, t.title, t.content, t.category, t.created_at, u.username
+      SELECT t.id, t.title, t.content, t.created_at, t.category, u.username
       FROM threads t
       JOIN users u ON t.user_id = u.id
     `;
     const params = [];
-    if (categoryFilter) {
-      sql += ' WHERE t.category = ? ';
-      params.push(categoryFilter);
+    if (category) {
+      sql += ' WHERE t.category = ?';
+      params.push(category);
     }
     sql += ' ORDER BY t.created_at DESC';
 
@@ -92,12 +92,13 @@ app.get('/threads', async (req, res) => {
   }
 });
 
+
 // Get a thread by id + its posts
 app.get('/threads/:id', async (req, res) => {
   const threadId = req.params.id;
   try {
     const [[thread]] = await pool.query(`
-      SELECT t.id, t.title, t.content, t.category, t.created_at, u.username
+      SELECT t.id, t.title, t.content, t.created_at, u.username
       FROM threads t
       JOIN users u ON t.user_id = u.id
       WHERE t.id = ?
@@ -120,6 +121,7 @@ app.get('/threads/:id', async (req, res) => {
   }
 });
 
+
 // Create a thread (authenticated)
 app.post('/createthreads', authenticateToken, async (req, res) => {
   const { title, content, category } = req.body;
@@ -136,6 +138,7 @@ app.post('/createthreads', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Database error' });
   }
 });
+
 
 // Add a post to a thread (authenticated)
 app.post('/threads/:id/posts', authenticateToken, async (req, res) => {
