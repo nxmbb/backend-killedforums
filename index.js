@@ -68,15 +68,23 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Get all threads
+// Get all threads (optionally filtered by category)
 app.get('/threads', async (req, res) => {
+  const categoryFilter = req.query.category;
   try {
-    const [threads] = await pool.query(`
-      SELECT t.id, t.title, t.content, t.created_at, u.username
+    let sql = `
+      SELECT t.id, t.title, t.content, t.category, t.created_at, u.username
       FROM threads t
       JOIN users u ON t.user_id = u.id
-      ORDER BY t.created_at DESC
-    `);
+    `;
+    const params = [];
+    if (categoryFilter) {
+      sql += ' WHERE t.category = ? ';
+      params.push(categoryFilter);
+    }
+    sql += ' ORDER BY t.created_at DESC';
+
+    const [threads] = await pool.query(sql, params);
     res.json(threads);
   } catch (err) {
     console.error(err);
@@ -89,7 +97,7 @@ app.get('/threads/:id', async (req, res) => {
   const threadId = req.params.id;
   try {
     const [[thread]] = await pool.query(`
-      SELECT t.id, t.title, t.content, t.created_at, u.username
+      SELECT t.id, t.title, t.content, t.category, t.created_at, u.username
       FROM threads t
       JOIN users u ON t.user_id = u.id
       WHERE t.id = ?
@@ -112,16 +120,15 @@ app.get('/threads/:id', async (req, res) => {
   }
 });
 
-
 // Create a thread (authenticated)
 app.post('/createthreads', authenticateToken, async (req, res) => {
-  const { title, content } = req.body;
-  if (!title || !content) return res.status(400).json({ error: 'Missing fields' });
+  const { title, content, category } = req.body;
+  if (!title || !content || !category) return res.status(400).json({ error: 'Missing fields' });
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO threads (title, content, user_id) VALUES (?, ?, ?)',
-      [title, content, req.user.id]
+      'INSERT INTO threads (title, content, category, user_id) VALUES (?, ?, ?, ?)',
+      [title, content, category, req.user.id]
     );
     res.json({ message: 'Thread created', threadId: result.insertId });
   } catch (err) {
