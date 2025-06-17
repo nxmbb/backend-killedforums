@@ -29,23 +29,37 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// Register user
+
+// Register user (no email)
 app.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) return res.status(400).json({ error: 'Missing fields' });
+  const { username, password } = req.body;
+
+  // Validate input
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Missing username or password' });
+  }
 
   try {
-    const hashed = await bcrypt.hash(password, 10);
-    const [result] = await pool.query('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashed]);
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert new user into the database
+    const [result] = await pool.query(
+      'INSERT INTO users (username, password) VALUES (?, ?)',
+      [username, hashedPassword]
+    );
+
+    // Respond with success
     res.json({ message: 'User registered', userId: result.insertId });
   } catch (err) {
     if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ error: 'Username or email already exists' });
+      return res.status(400).json({ error: 'Username already exists' });
     }
     console.error(err);
     res.status(500).json({ error: 'Database error' });
   }
 });
+
 
 // Login user
 app.post('/login', async (req, res) => {
